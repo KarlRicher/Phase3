@@ -456,7 +456,6 @@ class Quoridor:
             raise QuoridorError("Aucun coup valide trouvé (pas de chemin et pas de voisins?).")
 
 
-    # Dans la classe Quoridor (fichier quoridor.py)
     def _trouver_coup_bloquant(self, id_joueur, id_adversaire, cible_joueur, cible_adversaire):
         """
         Cherche un placement de mur qui bloque l'adversaire sans bloquer le joueur.
@@ -557,7 +556,35 @@ class Quoridor:
         return None # Aucun coup bloquant trouvé
 
 def interpréter_la_ligne_de_commande():
-    """Génère un interpréteur de commande pour récupérer l'idul."""
-    parser = argparse.ArgumentParser(description="Jeu Quoridor en ligne")
-    parser.add_argument("--idul", required=True, help="IDUL du joueur")
+    """
+    Génère un interpréteur de commande pour le jeu Quoridor Phase 3.
+
+    Prend l'IDUL comme argument positionnel et accepte les options
+    pour les modes automatique et graphique.
+
+    Returns:
+        Namespace: Un objet Namespace contenant les arguments parseés.
+    """
+    parser = argparse.ArgumentParser(
+        description='Jeu Quoridor',
+        usage='main.py [-h] [-a] [-x] idul' # Correspond à l'usage demandé
+    )
+
+    parser.add_argument(
+        'idul',
+        help='IDUL du joueur'
+    )
+
+    parser.add_argument(
+        '-a', '--automatique',
+        action='store_true', # Stocke True si l'option est présente, False sinon
+        help='Activer le mode automatique.'
+    )
+
+    parser.add_argument(
+        '-x', '--graphique',
+        action='store_true', # Stocke True si l'option est présente, False sinon
+        help='Activer le mode graphique.'
+    )
+
     return parser.parse_args()
