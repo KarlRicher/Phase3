@@ -374,7 +374,8 @@ class Quoridor:
 
         Pour le joueur spécifié, jouer automatiquement son meilleur coup pour l'état actuel
         de la partie. Ce coup est soit le déplacement de son jeton, soit le placement d'un
-        mur horizontal ou vertical.
+        mur horizontal ou vertical. La priorité est donnée au placement d'un mur si
+        cela empêche l'adversaire de gagner au prochain coup.
 
         Args:
             joueur (str): le nom du joueur.
@@ -384,39 +385,196 @@ class Quoridor:
             QuoridorError: La partie est déjà terminée.
 
         Returns:
-            tuple: Un tuple composé d'un type de coup et de la position.
-               Le type de coup est une chaîne de caractères.
-               La position est une liste de 2 entier [x, y].
+            tuple: Un tuple composé d'un type de coup ('D', 'M') et de la position.
+                   Pour 'D': [x, y]
+                   Pour 'M': [x, y, orientation ('MH' ou 'MV')]
         """
-        # Vérifier que le joueur existe
-        if joueur not in [j["nom"] for j in self.joueurs]:
-            raise QuoridorError("Le joueur spécifié n'existe pas.")
-
-        # Vérifier que la partie n'est pas terminée
+        # 1. Vérifications initiales
         if self.partie_terminée():
-            raise QuoridorError("La partie est déjà terminée.")
+            raise QuoridorError("La partie est déjà terminée.") #
 
-        # Trouver l'index et la position actuelle du joueur
-        index = 0 if self.joueurs[0]["nom"] == joueur else 1
-        position_actuelle = tuple(self.joueurs[index]["position"])
+        id_joueur = -1
+        for i, j in enumerate(self.joueurs): #
+            if j["nom"] == joueur: #
+                id_joueur = i
+                break
+        if id_joueur == -1:
+            raise QuoridorError(f"Le joueur {joueur} n'existe pas.") #
 
-        # Construire le graphe des déplacements possibles
-        graphe = construire_graphe(
-            [j["position"] for j in self.joueurs],
-            self.murs["horizontaux"],
-            self.murs["verticaux"]
+        id_adversaire = 1 - id_joueur
+        pos_joueur = tuple(self.joueurs[id_joueur]["position"]) #
+        pos_adversaire = tuple(self.joueurs[id_adversaire]["position"]) #
+        murs_restants = self.joueurs[id_joueur]["murs"] #
+
+        cible_joueur = "B1" if id_joueur == 0 else "B2" #
+        cible_adversaire = "B2" if id_joueur == 0 else "B1" #
+
+        # 2. Vérifier si un blocage est nécessaire et possible
+        if murs_restants > 0: #
+            # Construire le graphe actuel pour vérifier le chemin de l'adversaire
+            graphe_actuel = construire_graphe( #
+                [self.joueurs[0]["position"], self.joueurs[1]["position"]], #
+                self.murs["horizontaux"], #
+                self.murs["verticaux"] #
+            )
+
+            # Si l'adversaire a un chemin direct vers la victoire
+            if nx.has_path(graphe_actuel, pos_adversaire, cible_adversaire): #
+                chemin_adversaire = nx.shortest_path(graphe_actuel, pos_adversaire, cible_adversaire) #
+
+                # Déterminer la ligne de victoire pour l'adversaire
+                # 1 pour joueur 1 (adv=0) qui va vers le bas (cible B2), 9 pour joueur 2 (adv=1) qui va vers le haut (cible B1)
+                ligne_victoire_adversaire = 9 if id_adversaire == 0 else 1
+
+                # Vérifier si la prochaine case du chemin de l'adversaire est sur sa ligne de victoire
+                # chemin_adversaire[0] est sa position actuelle, chemin_adversaire[1] est la case suivante
+                if len(chemin_adversaire) > 1 and isinstance(chemin_adversaire[1], tuple) and chemin_adversaire[1][1] == ligne_victoire_adversaire:
+                    # L'adversaire est à un coup de gagner, chercher un coup bloquant
+                    coup_bloquant = self._trouver_coup_bloquant(id_joueur, id_adversaire, cible_joueur, cible_adversaire) #
+                    if coup_bloquant:
+                        # Blocage trouvé et possible
+                        return coup_bloquant # Retourne ('M', [x, y, orientation])
+
+        # 3. Si pas de blocage obligatoire/possible, choisir le déplacement le plus court
+        graphe_final = construire_graphe( #
+            [self.joueurs[0]["position"], self.joueurs[1]["position"]], #
+            self.murs["horizontaux"], #
+            self.murs["verticaux"] #
         )
 
-        # Trouver la cible : B1 pour joueur 1, B2 pour joueur 2
-        cible = "B1" if index == 0 else "B2"
+        if nx.has_path(graphe_final, pos_joueur, cible_joueur): #
+            chemin_joueur = nx.shortest_path(graphe_final, pos_joueur, cible_joueur) #
+            # chemin[0] est la position actuelle
+            prochaine_position = chemin_joueur[1] if len(chemin_joueur) > 1 else cible_joueur #
 
-        # Trouver le plus court chemin vers l'objectif
-        chemin = nx.shortest_path(graphe, position_actuelle, cible)
+            # Si la prochaine position est une cible ('B1' ou 'B2'), utiliser la dernière case réelle du chemin
+            if isinstance(prochaine_position, str):
+                 # S'assurer qu'il y a une case avant la cible
+                 if len(chemin_joueur) > 1:
+                    prochaine_position = chemin_joueur[-2] # L'avant-dernière case
+                 else: # Cas très improbable : le joueur est sur sa case de départ et la seule "prochaine" étape est la cible?
+                     raise QuoridorError("Erreur de chemin: Pas de case intermédiaire avant la cible.") #
 
-        # Le premier mouvement vers la cible est le coup à jouer
-        prochaine_position = chemin[1]  # chemin[0] == position_actuelle
+            # S'assurer que la prochaine position est bien un tuple avant de la retourner
+            if isinstance(prochaine_position, tuple):
+                return ("D", list(prochaine_position)) #
+            else:
+                # Gérer le cas où la prochaine_position n'est pas ce qu'on attend (ne devrait pas arriver ici)
+                raise QuoridorError(f"Erreur inattendue: prochaine_position invalide '{prochaine_position}'.") #
 
-        return self.appliquer_un_coup(joueur, list(prochaine_position), "D")
+        else:
+            # Si le joueur n'a pas de chemin (ne devrait pas arriver si la logique de placement de mur est correcte)
+            # Tenter de trouver n'importe quel mouvement valide comme solution de secours
+            voisins = list(graphe_final.successors(pos_joueur)) #
+            if voisins:
+                 # Exclure 'B1'/'B2' si présents
+                voisins_reels = [v for v in voisins if isinstance(v, tuple)]
+                if voisins_reels:
+                    return ("D", list(voisins_reels[0])) # Prend le premier voisin trouvé #
+
+            # Si aucun voisin n'est trouvé (très improbable), lever une erreur.
+            raise QuoridorError("Aucun coup valide trouvé (pas de chemin et pas de voisins?).") #
+
+
+    # Dans la classe Quoridor (fichier quoridor.py)
+    def _trouver_coup_bloquant(self, id_joueur, id_adversaire, cible_joueur, cible_adversaire):
+        """
+        Cherche un placement de mur qui bloque l'adversaire sans bloquer le joueur.
+        Helper pour jouer_un_coup.
+        """
+        pos_joueur = tuple(self.joueurs[id_joueur]["position"])
+        pos_adversaire = tuple(self.joueurs[id_adversaire]["position"])
+
+        print(f"DEBUG bloc: Recherche coup bloquant... Joueur={pos_joueur}, Adv={pos_adversaire}") # DEBUG général
+
+        for x in range(1, 9):
+            for y in range(1, 9):
+                for orientation in ["MH", "MV"]:
+                    pos_mur = [x, y]
+                    murs_h_temp = deepcopy(self.murs["horizontaux"])
+                    murs_v_temp = deepcopy(self.murs["verticaux"])
+                    mur_ajoute = False # Flag pour savoir si on a tenté d'ajouter
+                    placement_valide = True # Flag pour la validation initiale
+
+                    # 1. Valider le placement potentiel du mur (simplifié)
+                    #    et préparer les listes temporaires
+                    if orientation == "MH":
+                         # Vérifie si un mur H est déjà là, ou juste à gauche/droite
+                         # Vérifie si un mur V croise au même point (simplifié)
+                        if pos_mur in murs_h_temp or \
+                           [pos_mur[0]-1, pos_mur[1]] in murs_h_temp or \
+                           [pos_mur[0]+1, pos_mur[1]] in murs_h_temp or \
+                           (pos_mur in murs_v_temp): # Chevauchement simple avec un mur V
+                            placement_valide = False
+                        else:
+                            murs_h_temp.append(pos_mur)
+                            mur_ajoute = True
+                    else: # orientation == "MV"
+                        # Vérifie si un mur V est déjà là, ou juste au dessus/dessous
+                        # Vérifie si un mur H croise au même point (simplifié)
+                        if pos_mur in murs_v_temp or \
+                           [pos_mur[0], pos_mur[1]-1] in murs_v_temp or \
+                           [pos_mur[0], pos_mur[1]+1] in murs_v_temp or \
+                           (pos_mur in murs_h_temp): # Chevauchement simple avec un mur H
+                            placement_valide = False
+                        else:
+                            murs_v_temp.append(pos_mur)
+                            mur_ajoute = True
+
+                    # Si la validation initiale échoue, passer au mur suivant
+                    if not placement_valide:
+                        # DEBUG pour voir si un mur spécifique est invalidé tôt
+                        # if pos_mur == [4, 1] and orientation == 'MV':
+                        #    print(f"DEBUG bloc: Mur {orientation} en {pos_mur} jugé invalide avant construction graphe.")
+                        continue
+
+                    # Si le mur n'a pas pu être ajouté pour une raison quelconque (ne devrait pas arriver ici si valide)
+                    if not mur_ajoute:
+                         # print(f"DEBUG bloc: Mur {orientation} en {pos_mur} non ajouté mais valide?") # Optionnel
+                         continue
+
+                    # 2. Essayer de construire le graphe et vérifier les chemins
+                    try:
+                        # Essayer de construire le graphe AVEC le mur temporaire
+                        graphe_temp = construire_graphe(
+                            [self.joueurs[0]["position"], self.joueurs[1]["position"]],
+                            murs_h_temp,
+                            murs_v_temp
+                        )
+
+                        # Si la construction du graphe réussit, vérifier les chemins
+                        adversaire_bloque = not nx.has_path(graphe_temp, pos_adversaire, cible_adversaire)
+                        joueur_non_bloque = nx.has_path(graphe_temp, pos_joueur, cible_joueur)
+
+                        # --- AJOUT DEBUG CIBLÉ ---
+                        # Imprimer l'évaluation pour les murs spécifiques en [4, 1]
+                        if pos_mur == [4, 1]:
+                            if orientation == 'MH':
+                                print(f"DEBUG bloc (après graphe): Mur [4, 1] MH -> Adv Bloqué? {adversaire_bloque}, Joueur OK? {joueur_non_bloque}")
+                            elif orientation == 'MV':
+                                print(f"DEBUG bloc (après graphe): Mur [4, 1] MV -> Adv Bloqué? {adversaire_bloque}, Joueur OK? {joueur_non_bloque}")
+                        # --- FIN AJOUT DEBUG CIBLÉ ---
+
+                        # Si ce mur remplit les conditions de blocage
+                        if adversaire_bloque and joueur_non_bloque:
+                            print(f"DEBUG bloc: MUR VALIDE TROUVÉ: {orientation} en {pos_mur}") # DEBUG
+                            return ("M", [x, y, orientation])
+
+                    except nx.NetworkXError as e:
+                         # --- AJOUT DEBUG pour erreur spécifique ---
+                         # Imprimer l'erreur seulement si elle concerne nos murs d'intérêt
+                         if pos_mur == [4, 1] and (orientation == 'MH' or orientation == 'MV'):
+                            print(f"DEBUG bloc: Erreur NetworkX pour mur {orientation} en {pos_mur}: {e}")
+                         # --- FIN AJOUT DEBUG ---
+                         # On continue simplement au prochain mur potentiel
+                         continue
+                    except Exception as e:
+                         # Attrape toute autre exception inattendue
+                         print(f"DEBUG bloc: Autre Exception pour mur {orientation} en {pos_mur}: {e}")
+                         continue
+
+        print("DEBUG bloc: Aucun coup bloquant trouvé après vérification.") # DEBUG général fin
+        return None # Aucun coup bloquant trouvé
 
 def interpréter_la_ligne_de_commande():
     """Génère un interpréteur de commande pour récupérer l'idul."""
