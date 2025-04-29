@@ -389,91 +389,71 @@ class Quoridor:
                    Pour 'D': [x, y]
                    Pour 'M': [x, y, orientation ('MH' ou 'MV')]
         """
-        # 1. Vérifications initiales
         if self.partie_terminée():
-            raise QuoridorError("La partie est déjà terminée.") #
+            raise QuoridorError("La partie est déjà terminée.")
 
         id_joueur = -1
-        for i, j in enumerate(self.joueurs): #
-            if j["nom"] == joueur: #
+        for i, j in enumerate(self.joueurs):
+            if j["nom"] == joueur:
                 id_joueur = i
                 break
         if id_joueur == -1:
-            raise QuoridorError(f"Le joueur {joueur} n'existe pas.") #
+            raise QuoridorError(f"Le joueur {joueur} n'existe pas.")
 
         id_adversaire = 1 - id_joueur
-        pos_joueur = tuple(self.joueurs[id_joueur]["position"]) #
-        pos_adversaire = tuple(self.joueurs[id_adversaire]["position"]) #
-        murs_restants = self.joueurs[id_joueur]["murs"] #
+        pos_joueur = tuple(self.joueurs[id_joueur]["position"])
+        pos_adversaire = tuple(self.joueurs[id_adversaire]["position"])
+        murs_restants = self.joueurs[id_joueur]["murs"]
 
-        cible_joueur = "B1" if id_joueur == 0 else "B2" #
-        cible_adversaire = "B2" if id_joueur == 0 else "B1" #
+        cible_joueur = "B1" if id_joueur == 0 else "B2"
+        cible_adversaire = "B2" if id_joueur == 0 else "B1"
 
-        # 2. Vérifier si un blocage est nécessaire et possible
-        if murs_restants > 0: #
-            # Construire le graphe actuel pour vérifier le chemin de l'adversaire
-            graphe_actuel = construire_graphe( #
-                [self.joueurs[0]["position"], self.joueurs[1]["position"]], #
-                self.murs["horizontaux"], #
-                self.murs["verticaux"] #
+        if murs_restants > 0:
+            graphe_actuel = construire_graphe(
+                [self.joueurs[0]["position"], self.joueurs[1]["position"]],
+                self.murs["horizontaux"],
+                self.murs["verticaux"]
             )
 
-            # Si l'adversaire a un chemin direct vers la victoire
-            if nx.has_path(graphe_actuel, pos_adversaire, cible_adversaire): #
-                chemin_adversaire = nx.shortest_path(graphe_actuel, pos_adversaire, cible_adversaire) #
-
-                # Déterminer la ligne de victoire pour l'adversaire
-                # 1 pour joueur 1 (adv=0) qui va vers le bas (cible B2), 9 pour joueur 2 (adv=1) qui va vers le haut (cible B1)
+            if nx.has_path(graphe_actuel, pos_adversaire, cible_adversaire):
+                chemin_adversaire = nx.shortest_path(graphe_actuel, pos_adversaire, cible_adversaire)
                 ligne_victoire_adversaire = 9 if id_adversaire == 0 else 1
 
-                # Vérifier si la prochaine case du chemin de l'adversaire est sur sa ligne de victoire
-                # chemin_adversaire[0] est sa position actuelle, chemin_adversaire[1] est la case suivante
                 if len(chemin_adversaire) > 1 and isinstance(chemin_adversaire[1], tuple) and chemin_adversaire[1][1] == ligne_victoire_adversaire:
-                    # L'adversaire est à un coup de gagner, chercher un coup bloquant
-                    coup_bloquant = self._trouver_coup_bloquant(id_joueur, id_adversaire, cible_joueur, cible_adversaire) #
+                    coup_bloquant = self._trouver_coup_bloquant(id_joueur, id_adversaire, cible_joueur, cible_adversaire)
                     if coup_bloquant:
-                        # Blocage trouvé et possible
-                        return coup_bloquant # Retourne ('M', [x, y, orientation])
+                        return coup_bloquant
 
-        # 3. Si pas de blocage obligatoire/possible, choisir le déplacement le plus court
-        graphe_final = construire_graphe( #
-            [self.joueurs[0]["position"], self.joueurs[1]["position"]], #
-            self.murs["horizontaux"], #
-            self.murs["verticaux"] #
+        graphe_final = construire_graphe(
+            [self.joueurs[0]["position"], self.joueurs[1]["position"]],
+            self.murs["horizontaux"],
+            self.murs["verticaux"]
         )
 
-        if nx.has_path(graphe_final, pos_joueur, cible_joueur): #
-            chemin_joueur = nx.shortest_path(graphe_final, pos_joueur, cible_joueur) #
-            # chemin[0] est la position actuelle
-            prochaine_position = chemin_joueur[1] if len(chemin_joueur) > 1 else cible_joueur #
+        if nx.has_path(graphe_final, pos_joueur, cible_joueur):
+            chemin_joueur = nx.shortest_path(graphe_final, pos_joueur, cible_joueur)
+            # NOTE: Le print de debug du chemin a été retiré ici, comme demandé.
+            prochaine_position = chemin_joueur[1] if len(chemin_joueur) > 1 else cible_joueur
 
-            # Si la prochaine position est une cible ('B1' ou 'B2'), utiliser la dernière case réelle du chemin
             if isinstance(prochaine_position, str):
-                 # S'assurer qu'il y a une case avant la cible
                  if len(chemin_joueur) > 1:
-                    prochaine_position = chemin_joueur[-2] # L'avant-dernière case
-                 else: # Cas très improbable : le joueur est sur sa case de départ et la seule "prochaine" étape est la cible?
-                     raise QuoridorError("Erreur de chemin: Pas de case intermédiaire avant la cible.") #
+                    prochaine_position = chemin_joueur[-2]
+                 else:
+                     raise QuoridorError("Erreur de chemin: Pas de case intermédiaire avant la cible.")
 
-            # S'assurer que la prochaine position est bien un tuple avant de la retourner
             if isinstance(prochaine_position, tuple):
-                return ("D", list(prochaine_position)) #
+                return ("D", list(prochaine_position))
             else:
-                # Gérer le cas où la prochaine_position n'est pas ce qu'on attend (ne devrait pas arriver ici)
-                raise QuoridorError(f"Erreur inattendue: prochaine_position invalide '{prochaine_position}'.") #
+                raise QuoridorError(f"Erreur inattendue: prochaine_position invalide '{prochaine_position}'.")
 
         else:
-            # Si le joueur n'a pas de chemin (ne devrait pas arriver si la logique de placement de mur est correcte)
-            # Tenter de trouver n'importe quel mouvement valide comme solution de secours
-            voisins = list(graphe_final.successors(pos_joueur)) #
+            voisins = list(graphe_final.successors(pos_joueur))
             if voisins:
-                 # Exclure 'B1'/'B2' si présents
                 voisins_reels = [v for v in voisins if isinstance(v, tuple)]
                 if voisins_reels:
-                    return ("D", list(voisins_reels[0])) # Prend le premier voisin trouvé #
+                    return ("D", list(voisins_reels[0]))
 
-            # Si aucun voisin n'est trouvé (très improbable), lever une erreur.
-            raise QuoridorError("Aucun coup valide trouvé (pas de chemin et pas de voisins?).") #
+            raise QuoridorError("Aucun coup valide trouvé (pas de chemin et pas de voisins?).")
 
 
     # Dans la classe Quoridor (fichier quoridor.py)
