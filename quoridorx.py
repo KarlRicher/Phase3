@@ -1,7 +1,12 @@
+"""
+Module pour le jeu Quoridor avec une interface graphique utilisant Turtle.
+
+Ce module étend la logique de jeu de la classe Quoridor (supposée définie ailleurs)
+en ajoutant une visualisation graphique interactive.
+"""
 import time
 import turtle
 from quoridor import Quoridor
-from copy import deepcopy # Import deepcopy if needed for update_state or similar later
 
 # Note: time import removed as it wasn't used in the final main.py logic provided
 # import time
@@ -199,7 +204,7 @@ if __name__ == '__main__':
         jeu_graphique.screen.exitonclick()
 
     except turtle.Terminator:
-         print("Fenêtre fermée pendant le test.")
+        print("Fenêtre fermée pendant le test.")
     except Exception as e:
         print(f"Une erreur est survenue: {e}")
         import traceback

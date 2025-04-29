@@ -1,3 +1,13 @@
+"""
+Client principal pour le jeu Quoridor interactif ou automatique,
+avec support pour l'affichage texte ou graphique (Turtle).
+
+Interagit avec une API externe pour gérer l'état de la partie
+et appliquer les coups des joueurs. Supporte le mode manuel
+et un mode "automatique" (nécessite l'implémentation de la
+logique de jeu automatique dans la classe Quoridor ou QuoridorX).
+"""
+
 import sys
 import argparse
 import time
@@ -31,16 +41,16 @@ def créer_ou_mettre_à_jour_partie(classe_jeu, état_serveur, partie_existante=
         partie_existante.max_nom_len = max(len(j["nom"]) for j in partie_existante.joueurs)
 
         return partie_existante
-    else:
         # Création d'une nouvelle instance
-        return classe_jeu(joueurs, murs, tour)
+    return classe_jeu(joueurs, murs, tour)
 
 
 if __name__ == "__main__":
     # === Analyse des arguments ===
     parser = argparse.ArgumentParser(prog="main.py", description="Quoridor")
     parser.add_argument("idul", help="IDUL du joueur")
-    parser.add_argument("-a", "--automatique", action="store_true", help="Activer le mode automatique.")
+    parser.add_argument("-a", "--automatique", action="store_true",
+                         help="Activer le mode automatique.")
     parser.add_argument("-x", "--graphique", action="store_true", help="Activer le mode graphique.")
     args = parser.parse_args()
 
@@ -115,8 +125,10 @@ if __name__ == "__main__":
                 # Si on arrive ici, le coup a été accepté et la partie n'est pas finie par ce coup
                 print("Coup accepté par le serveur. Récupération de l'état...")
                 try:
-                    _, état_partie_actuel = récupérer_une_partie(id_partie, idul_joueur, secret_joueur)
-                except (PermissionError, RuntimeError, ConnectionError, ReferenceError) as e_recup:
+                    _, état_partie_actuel = récupérer_une_partie(id_partie, idul_joueur,
+                                                                 secret_joueur)
+                except (PermissionError, RuntimeError, ConnectionError,
+                         ReferenceError) as e_recup:
                     print(f"\nERREUR API lors de la récupération après coup : {e_recup}")
                     print("Arrêt de la partie.")
                     sys.exit(1)
@@ -128,8 +140,10 @@ if __name__ == "__main__":
                 # Pause optionnelle pour ne pas surcharger le serveur avec des GETs
                 time.sleep(0.5)
                 try:
-                     _, état_partie_actuel = récupérer_une_partie(id_partie, idul_joueur, secret_joueur)
-                except (PermissionError, RuntimeError, ConnectionError, ReferenceError) as e_recup_attente:
+                    _, état_partie_actuel = récupérer_une_partie(id_partie, idul_joueur,
+                                                              secret_joueur)
+                except (PermissionError, RuntimeError, ConnectionError,
+                         ReferenceError) as e_recup_attente:
                     print(f"\nERREUR API lors de la récupération en attente : {e_recup_attente}")
                     print("Arrêt de la partie.")
                     sys.exit(1)
@@ -161,14 +175,14 @@ if __name__ == "__main__":
         if args.graphique and partie:
             partie.afficher()
         elif partie:
-             print(partie)
+            print(partie)
     except Exception as e_final:
         print(f"Impossible de récupérer l'état final : {e_final}")
         # Afficher le dernier état connu si disponible
         if args.graphique and partie:
             partie.afficher()
         elif partie:
-             print(partie)
+            print(partie)
 
 
     print(f"Le gagnant est : {gagnant}")
