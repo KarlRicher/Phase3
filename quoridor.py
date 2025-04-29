@@ -95,8 +95,6 @@ class Quoridor:
         """
         damier = [row[:] for row in self.EMPTY_DAMIER]
 
-        print(damier)
-
         # Placement des joueurs
         p1 = self.joueurs[0]["position"]
         p2 = self.joueurs[1]["position"]
