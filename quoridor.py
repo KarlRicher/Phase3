@@ -430,7 +430,6 @@ class Quoridor:
 
         if nx.has_path(graphe_final, pos_joueur, cible_joueur):
             chemin_joueur = nx.shortest_path(graphe_final, pos_joueur, cible_joueur)
-            # NOTE: Le print de debug du chemin a été retiré ici, comme demandé.
             prochaine_position = chemin_joueur[1] if len(chemin_joueur) > 1 else cible_joueur
 
             if isinstance(prochaine_position, str):
@@ -462,7 +461,6 @@ class Quoridor:
         pos_joueur = tuple(self.joueurs[id_joueur]["position"])
         pos_adversaire = tuple(self.joueurs[id_adversaire]["position"])
 
-        print(f"DEBUG bloc: Recherche coup bloquant... Joueur={pos_joueur}, Adv={pos_adversaire}") # DEBUG général
 
         for x in range(1, 9):
             for y in range(1, 9):
@@ -500,14 +498,11 @@ class Quoridor:
 
                     # Si la validation initiale échoue, passer au mur suivant
                     if not placement_valide:
-                        # DEBUG pour voir si un mur spécifique est invalidé tôt
                         # if pos_mur == [4, 1] and orientation == 'MV':
-                        #    print(f"DEBUG bloc: Mur {orientation} en {pos_mur} jugé invalide avant construction graphe.")
                         continue
 
                     # Si le mur n'a pas pu être ajouté pour une raison quelconque (ne devrait pas arriver ici si valide)
                     if not mur_ajoute:
-                         # print(f"DEBUG bloc: Mur {orientation} en {pos_mur} non ajouté mais valide?") # Optionnel
                          continue
 
                     # 2. Essayer de construire le graphe et vérifier les chemins
@@ -523,34 +518,17 @@ class Quoridor:
                         adversaire_bloque = not nx.has_path(graphe_temp, pos_adversaire, cible_adversaire)
                         joueur_non_bloque = nx.has_path(graphe_temp, pos_joueur, cible_joueur)
 
-                        # --- AJOUT DEBUG CIBLÉ ---
-                        # Imprimer l'évaluation pour les murs spécifiques en [4, 1]
-                        if pos_mur == [4, 1]:
-                            if orientation == 'MH':
-                                print(f"DEBUG bloc (après graphe): Mur [4, 1] MH -> Adv Bloqué? {adversaire_bloque}, Joueur OK? {joueur_non_bloque}")
-                            elif orientation == 'MV':
-                                print(f"DEBUG bloc (après graphe): Mur [4, 1] MV -> Adv Bloqué? {adversaire_bloque}, Joueur OK? {joueur_non_bloque}")
-                        # --- FIN AJOUT DEBUG CIBLÉ ---
-
+                        # Imprimer l'évaluation pour les murs spécifiques en [4, 1
                         # Si ce mur remplit les conditions de blocage
                         if adversaire_bloque and joueur_non_bloque:
-                            print(f"DEBUG bloc: MUR VALIDE TROUVÉ: {orientation} en {pos_mur}") # DEBUG
                             return ("M", [x, y, orientation])
 
                     except nx.NetworkXError as e:
-                         # --- AJOUT DEBUG pour erreur spécifique ---
-                         # Imprimer l'erreur seulement si elle concerne nos murs d'intérêt
-                         if pos_mur == [4, 1] and (orientation == 'MH' or orientation == 'MV'):
-                            print(f"DEBUG bloc: Erreur NetworkX pour mur {orientation} en {pos_mur}: {e}")
-                         # --- FIN AJOUT DEBUG ---
-                         # On continue simplement au prochain mur potentiel
                          continue
                     except Exception as e:
                          # Attrape toute autre exception inattendue
-                         print(f"DEBUG bloc: Autre Exception pour mur {orientation} en {pos_mur}: {e}")
                          continue
 
-        print("DEBUG bloc: Aucun coup bloquant trouvé après vérification.") # DEBUG général fin
         return None # Aucun coup bloquant trouvé
 
 def interpréter_la_ligne_de_commande():
